@@ -35,8 +35,8 @@ rm /tmp/archive.tar.gz
     # Build the docker container
     echo "cd archive"
     # Push the container
-    echo "$(aws ecr get-login --region us-east-1 --no-include-email)"
-    echo "docker build -t $REGISTRY_NAME ."
+    echo "aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin $REGISTRY_NAME"
+    echo "docker build -t $REGISTRY_NAME $@ ."
     echo "docker push $REGISTRY_NAME:latest"
     # Remove the archive
     echo "cd .." 

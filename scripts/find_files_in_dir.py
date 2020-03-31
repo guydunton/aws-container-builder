@@ -1,6 +1,5 @@
-import glob
-import os
 import re
+import pathlib
 
 # Get filters
 my_filters = [l.rstrip('\n') for l in open('.dockerignore') if l[0] is not '#' and l is not '']
@@ -12,10 +11,7 @@ def matches_filters(filters, file):
     return False
 
 # Get all the files that don't match the filters
-files = [i for i in glob.glob('./**', recursive=True) if os.path.isfile(i) and not matches_filters(my_filters, i)]
-
-# Remove the ./ from the start of each file
-files = [file[2:] for file in files]
+files = [str(i) for i in pathlib.Path().rglob("*") if i.is_file() and not matches_filters(my_filters, str(i))]
 
 # Print out the excluded files
 print(' '.join(files))

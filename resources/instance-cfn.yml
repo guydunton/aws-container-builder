@@ -25,11 +25,14 @@ Resources:
         Fn::Base64: |
           #!/bin/bash -eux
           yum update -y
-          yum install -y docker
+          yum remove -y aws-cli
+          yum install -y docker python3
           systemctl enable docker
           service docker start
           usermod -aG docker ec2-user
           newgrp docker
+          pip3 install awscli
+          echo "export PATH=$HOME/.local/bin:$PATH" >> /home/ec2-user/.bashrc
   
   SecurityGroup:
     Type: AWS::EC2::SecurityGroup
@@ -70,6 +73,7 @@ Resources:
                   - "ecr:InitiateLayerUpload"
                   - "ecr:UploadLayerPart"
                   - "ecr:CompleteLayerUpload"
+                  - "ecr:GetAuthorizationToken"
                 Resource: "*"
 
   InstanceProfile:

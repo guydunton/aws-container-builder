@@ -42,13 +42,14 @@ ship() {
             *) # Assume that anything else was the registry name
             REGISTRY="$2"
             shift
+            shift
         esac
     else
         ship_help
     fi
 
     # Run the zip_and_ship script
-    REGISTRY_NAME="$REGISTRY" "$WORKING_DIR"/scripts/zip_and_ship.sh
+    REGISTRY_NAME="$REGISTRY" "$WORKING_DIR"/scripts/zip_and_ship.sh "$@"
 }
 
 bootstrap_help() {
