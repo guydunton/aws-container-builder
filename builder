@@ -15,6 +15,7 @@ help() {
     echo "  bootstrap       Setup VM"
     echo "  ship            Ship directory to VM to build"
     echo "  cleanup         Remove the VM and connections to it"
+    echo "  connect         Connect to the VM"
     exit 0
 }
 
@@ -113,6 +114,10 @@ if [[ $# -gt 0 ]]; then
         ;;
         cleanup) # cleanup subcommand
         cleanup "$@"
+        ;;
+        connect) # connect subcommand
+        "$WORKING_DIR"/scripts/connect.sh
+        exit 0
         ;;
         -h|--help) # root --help
         help
