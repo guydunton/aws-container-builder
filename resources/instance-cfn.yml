@@ -1,0 +1,84 @@
+Description: An EC2 instance for building containers
+
+Parameters:
+  AmiId:
+    Type: AWS::EC2::Image::Id
+    Description: Ami Id for base image
+  SSHKeyName:
+    Type: AWS::EC2::KeyPair::KeyName
+    Description: SSH key name already existing within AWS
+
+Resources:
+  Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t2.micro
+      ImageId: !Ref AmiId
+      SecurityGroups:
+        - !Ref SecurityGroup
+      KeyName: !Ref SSHKeyName
+      IamInstanceProfile: !Ref InstanceProfile
+      Tags:
+        - Key: Name
+          Value: ContainerBuilderInstance
+      UserData: 
+        Fn::Base64: |
+          #!/bin/bash -eux
+          yum update -y
+          yum install -y docker
+          systemctl enable docker
+          service docker start
+          usermod -aG docker ec2-user
+          newgrp docker
+  
+  SecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: ContainerBuilderSG
+      GroupDescription: Allow SSH access to container builder
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          CidrIp: 0.0.0.0/0
+          ToPort: 22
+  
+  InstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: ContainerBuilderRole
+      Path: "/"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Principal:
+              Service:
+                - "ec2.amazonaws.com"
+            Action:
+              - "sts:AssumeRole"
+      Policies:
+        - PolicyName: "AllowEcrPush"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: "Allow"
+                Action:
+                  - "ecr:GetDownloadUrlForLayer"
+                  - "ecr:BatchGetImage"
+                  - "ecr:BatchCheckLayerAvailability"
+                  - "ecr:PutImage"
+                  - "ecr:InitiateLayerUpload"
+                  - "ecr:UploadLayerPart"
+                  - "ecr:CompleteLayerUpload"
+                Resource: "*"
+
+  InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - !Ref InstanceRole
+
+Outputs:
+  InstanceIP:
+    Description: The Instance Public IP
+    Value: !GetAtt Instance.PublicIp
