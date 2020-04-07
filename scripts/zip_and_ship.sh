@@ -8,6 +8,15 @@ if [ -z "${REGISTRY_NAME:-}" ]; then
     exit 1
 fi
 
+TARGET_ACCOUNT=
+# If other account is set then use that otherwise use the root account
+if [ -z "${TARGET:-}" ]; then
+    # Get the account id from properties
+    TARGET_ACCOUNT=$(grep ROOT_ACCOUNT_ID "$WORKING_DIR"/properties | cut -d '=' -f2)
+else
+    TARGET_ACCOUNT="$TARGET"
+fi
+
 # Find a list of all files in the current directory (excluding .dockerignore files)
 files=$(python3 "$WORKING_DIR"/scripts/find_files_in_dir.py)
 
@@ -34,8 +43,11 @@ rm /tmp/archive.tar.gz
     echo "tar -xzvf archive.tar.gz -C archive"
     # Build the docker container
     echo "cd archive"
+    # Setup access
+    echo "aws configure set profile.target_profile.role_arn arn:aws:iam::$TARGET_ACCOUNT:role/ContainerBuilderPushRole"
+    echo "aws configure set profile.target_profile.credential_source Ec2InstanceMetadata"
     # Push the container
-    echo "aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin $REGISTRY_NAME"
+    echo "aws ecr get-login-password --profile target_profile --region us-east-1 | docker login --username AWS --password-stdin $REGISTRY_NAME"
     echo "docker build -t $REGISTRY_NAME $@ ."
     echo "docker push $REGISTRY_NAME:latest"
     # Remove the archive

@@ -1,0 +1,34 @@
+Description: This stack contains a role for cross account container building
+Parameters:
+  RootAccount:
+    Type: Number
+    Description: Account containing container builder instance
+Resources:
+  PushRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: ContainerBuilderPushRole
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action: 
+              - "sts:AssumeRole"
+            Principal: 
+              AWS: !Join ["", ["arn:aws:iam::", !Ref RootAccount ,":role/ContainerBuilderRole"]]
+      Policies:
+        - PolicyName: "AllowEcrPush"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: "Allow"
+                Action:
+                  - "ecr:GetDownloadUrlForLayer"
+                  - "ecr:BatchGetImage"
+                  - "ecr:BatchCheckLayerAvailability"
+                  - "ecr:PutImage"
+                  - "ecr:InitiateLayerUpload"
+                  - "ecr:UploadLayerPart"
+                  - "ecr:CompleteLayerUpload"
+                  - "ecr:GetAuthorizationToken"
+                Resource: "*"

@@ -26,30 +26,43 @@ ship_help() {
     echo "Send working directory to VM, build using docker and push to REGISTRY"
     echo ""
     echo "Options:"
-    echo "  -h, --help      Print help text"
+    echo "  -h, --help          Print help text"
+    echo "  -a, --account int   Push to remote account"
     exit 0
 }
 
 ship() {
     local REGISTRY
-    if [[ $# -gt 1 ]]; then
-        key="$2"
+    local TARGET_ACCOUNT=""
 
-        case "$key" in
-            -h|--help) # Ship help text
-            ship_help
-            ;;
-            *) # Assume that anything else was the registry name
-            REGISTRY="$2"
-            shift
-            shift
-        esac
+    if [[ $# -gt 1 ]]; then
+        while [[ $# -gt 0 ]]; do
+            key="$1"
+
+            echo "$key"
+
+            case "$key" in
+                -h|--help) # Ship help text
+                ship_help
+                ;;
+                -a|--account) # Add remote account option
+                TARGET_ACCOUNT="$2"
+                shift
+                shift
+                ;;
+                *) # Assume that anything else was the registry name
+                REGISTRY="$1"
+                shift
+                break
+                ;;
+            esac
+        done
     else
         ship_help
     fi
 
     # Run the zip_and_ship script
-    REGISTRY_NAME="$REGISTRY" "$WORKING_DIR"/scripts/zip_and_ship.sh "$@"
+    REGISTRY_NAME="$REGISTRY" TARGET="$TARGET_ACCOUNT" "$WORKING_DIR"/scripts/zip_and_ship.sh "$@"
 }
 
 bootstrap_help() {
@@ -108,6 +121,7 @@ if [[ $# -gt 0 ]]; then
 
     case $key in
         ship) # Ship subcommand
+        shift
         ship "$@"
         ;;
         bootstrap) # bootstrap subcommand

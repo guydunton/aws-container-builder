@@ -64,10 +64,12 @@ INSTANCE_IP=$(aws cloudformation describe-stacks \
 chmod +x "$WORKING_DIR/scripts/connect.sh"
 echo "Created connect script"
 
+ACCOUNT_ID=$(aws sts get-caller-identity --query ' Account' --output text)
 # Create a details file
 {
     echo "SSH_KEY=$WORKING_DIR/$SSH_KEY_NAME.pem"
     echo "INSTANCE_IP=$INSTANCE_IP"
+    echo "ROOT_ACCOUNT_ID=$ACCOUNT_ID"
 } > "$WORKING_DIR/properties"
 echo "Created "
 
@@ -83,6 +85,7 @@ echo "Created "
     echo "echo 'Deleted properties'"
     echo "echo 'Starting stack deletion'"
     echo "aws cloudformation delete-stack --stack-name $STACK_NAME --profile $AWS_PROFILE"
+    echo "aws cloudformation delete-stack --stack-name container-builder-role --profile $AWS_PROFILE"
     echo "aws cloudformation wait stack-delete-complete --stack-name $STACK_NAME --profile $AWS_PROFILE"
     echo "echo 'Stack delete complete'"
     echo "rm $WORKING_DIR/scripts/connect.sh"
@@ -90,5 +93,9 @@ echo "Created "
 } > "$WORKING_DIR/scripts/uninstall.sh"
 chmod +x "$WORKING_DIR/scripts/uninstall.sh"
 echo "Created uninstall script"
+
+echo "Started adding access to account"
+BASE_PROFILE="$AWS_PROFILE" NEW_ACCOUNT_PROFILE="$AWS_PROFILE" "$WORKING_DIR"/scripts/add_account.sh
+echo "Finished adding access to account"
 
 echo "Bootstrap complete"
