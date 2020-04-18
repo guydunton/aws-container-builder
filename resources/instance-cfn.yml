@@ -21,7 +21,7 @@ Resources:
       Tags:
         - Key: Name
           Value: ContainerBuilderInstance
-      UserData: 
+      UserData:
         Fn::Base64: |
           #!/bin/bash -eux
           yum update -y
@@ -33,7 +33,7 @@ Resources:
           newgrp docker
           pip3 install awscli
           echo "export PATH=$HOME/.local/bin:$PATH" >> /home/ec2-user/.bashrc
-  
+
   SecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
@@ -44,7 +44,7 @@ Resources:
           FromPort: 22
           CidrIp: 0.0.0.0/0
           ToPort: 22
-  
+
   InstanceRole:
     Type: AWS::IAM::Role
     Properties:
@@ -59,12 +59,50 @@ Resources:
                 - "ec2.amazonaws.com"
             Action:
               - "sts:AssumeRole"
+      Policies:
+        - PolicyName: AllowAssumeBuilderRole
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: "Allow"
+                Action: "sts:AssumeRole"
+                Resource: !GetAtt PushRole.Arn
 
   InstanceProfile:
     Type: AWS::IAM::InstanceProfile
     Properties:
       Roles:
         - !Ref InstanceRole
+
+  PushRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: ContainerBuilderPushRole
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - "sts:AssumeRole"
+            Principal:
+              AWS:
+                !Join ["", ["arn:aws:iam::{ACCOUNT}:role/ContainerBuilderRole"]]
+      Policies:
+        - PolicyName: "AllowEcrPush"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: "Allow"
+                Action:
+                  - "ecr:GetDownloadUrlForLayer"
+                  - "ecr:BatchGetImage"
+                  - "ecr:BatchCheckLayerAvailability"
+                  - "ecr:PutImage"
+                  - "ecr:InitiateLayerUpload"
+                  - "ecr:UploadLayerPart"
+                  - "ecr:CompleteLayerUpload"
+                  - "ecr:GetAuthorizationToken"
+                Resource: "*"
 
 Outputs:
   InstanceIP:
