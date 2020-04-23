@@ -3,9 +3,12 @@ use clap::{App, AppSettings, Arg, SubCommand};
 
 mod bootstrap;
 mod cfn_deploy;
+mod config;
+mod get_stack_ip;
 mod tag;
 mod test;
 
+pub use config::Config;
 pub use tag::Tag;
 use tag::{tag_parser, tags_validator};
 

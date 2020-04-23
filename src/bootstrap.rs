@@ -8,9 +8,12 @@ use std::error::Error;
 use std::fs::{create_dir, read_to_string, File};
 use std::io::prelude::*;
 use std::ops::Fn;
+use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
 
 use super::cfn_deploy::{deploy_stack, Parameter};
+use super::get_stack_ip::get_stack_ip_address;
+use super::Config;
 use super::Tag;
 
 #[derive(Debug)]
@@ -18,8 +21,10 @@ pub enum BootstrapErrors {
     FailedCreateWorkingDir(String),
     FailedCreatingSSHKey(String),
     FailedFindAmi,
-    FailedStackCreation,
-    FailedCreateRole,
+    FailedStackCreation(String),
+    FailedDescribeStack,
+    FailedWriteConfig,
+    FailedSetKeyPermissions,
 }
 
 pub async fn run_bootstrap(profile: String, tags: Vec<Tag>) -> Result<(), BootstrapErrors> {
@@ -30,7 +35,7 @@ pub async fn run_bootstrap(profile: String, tags: Vec<Tag>) -> Result<(), Bootst
         .map_err(|err| BootstrapErrors::FailedCreateWorkingDir(err))?;
 
     let profile_provider =
-        ProfileProvider::with_configuration(home_dir.join(".aws/credentials"), profile);
+        ProfileProvider::with_configuration(home_dir.join(".aws/credentials"), profile.clone());
 
     let ec2_client = Ec2Client::new_with(
         HttpClient::new().expect("Failed to create request dispatcher"),
@@ -53,7 +58,7 @@ pub async fn run_bootstrap(profile: String, tags: Vec<Tag>) -> Result<(), Bootst
 
     // Load the cloudformation template file to a string
     let cfn_template = read_to_string("resources/instance-cfn.yml")
-        .map_err(|_| BootstrapErrors::FailedStackCreation)?;
+        .map_err(|err| BootstrapErrors::FailedStackCreation(err.to_string()))?;
 
     // Deploy the cloudformation template
     deploy_stack(
@@ -65,25 +70,20 @@ pub async fn run_bootstrap(profile: String, tags: Vec<Tag>) -> Result<(), Bootst
             Parameter::new("SSHKeyName".to_owned(), "ContainerBuilderKey".to_owned()),
         ],
         &tags,
+        7 * 60,
     )
     .await
-    .map_err(|_| BootstrapErrors::FailedStackCreation)?;
+    .map_err(|err| BootstrapErrors::FailedStackCreation(err.to_string()))?;
 
-    // Deploy the role stack
-    let role_stack_template =
-        read_to_string("resources/role-cfn.yml").map_err(|_| BootstrapErrors::FailedCreateRole)?;
-    deploy_stack(
-        &cfn_client,
-        "container-builder-role".to_owned(),
-        role_stack_template,
-        &vec![],
-        &tags,
-    )
-    .await
-    .map_err(|_| BootstrapErrors::FailedCreateRole)?;
+    // Get the IP address of the instance
+    let instance_ip = get_stack_ip_address(&cfn_client)
+        .await
+        .ok_or(BootstrapErrors::FailedDescribeStack)?;
 
-    // Retrieve the instance IP
-    // Store the config (IP, Root account id/profile)
+    let config = Config::new(instance_ip, profile.clone());
+    config
+        .write_to_file(&working_dir.join("properties.yml"))
+        .map_err(|_| BootstrapErrors::FailedWriteConfig)?;
 
     return Ok(());
 }
@@ -200,5 +200,37 @@ pub async fn create_ssh_key<Client: Ec2>(
         BootstrapErrors::FailedCreatingSSHKey("Failed to write ssh key bytes".to_owned())
     })?;
 
+    // Set the permissions of the file to readonly
+    set_file_permissions(&file);
+
     return Ok(());
+}
+
+fn set_file_permissions(file: &File) -> bool {
+    if cfg!(unix) {
+        // Set readonly permissions on the file if on unix
+        let maybe_metadata = file
+            .metadata()
+            .map_err(|_| BootstrapErrors::FailedSetKeyPermissions);
+
+        let metadata = match maybe_metadata {
+            Ok(md) => md,
+            Err(_) => {
+                return false;
+            }
+        };
+
+        let mut permissions = metadata.permissions();
+        permissions.set_mode(0o400);
+        match file.set_permissions(permissions) {
+            Ok(_) => {
+                return true;
+            }
+            _ => {
+                return false;
+            }
+        }
+    } else {
+        return true;
+    }
 }

@@ -4,10 +4,17 @@ use std::time::{Duration, Instant};
 
 use super::Tag;
 
+#[derive(Debug)]
 pub enum DeployError {
     CreateStackFailed,
     DescribeStackFailed,
     TimedOut,
+}
+
+impl std::fmt::Display for DeployError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self)
+    }
 }
 
 #[derive(Clone)]
@@ -28,6 +35,7 @@ pub async fn deploy_stack<Client: CloudFormation>(
     template: String,
     parameters: &Vec<Parameter>,
     tags: &Vec<Tag>,
+    timeout: u64,
 ) -> Result<(), DeployError> {
     // Start the stack creation
     client
@@ -57,8 +65,8 @@ pub async fn deploy_stack<Client: CloudFormation>(
             break;
         }
 
-        // Check for timeout of 5 minutes
-        if start_time.elapsed() > Duration::from_secs(60 * 5) {
+        // Check for timeout
+        if start_time.elapsed() > Duration::from_secs(timeout) {
             return Err(DeployError::TimedOut);
         }
 

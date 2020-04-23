@@ -12,7 +12,8 @@ TARGET_ACCOUNT=
 # If other account is set then use that otherwise use the root account
 if [ -z "${TARGET:-}" ]; then
     # Get the account id from properties
-    TARGET_ACCOUNT=$(grep ROOT_ACCOUNT_ID "$WORKING_DIR"/properties | cut -d '=' -f2)
+    ACCOUNT_PROFILE=$(grep base_profile "$WORKING_DIR"/properties.yml | cut -d ' ' -f2)
+    TARGET_ACCOUNT=$(aws sts get-caller-identity --profile "$ACCOUNT_PROFILE" --query 'Account' --output text)
 else
     TARGET_ACCOUNT="$TARGET"
 fi
@@ -25,8 +26,8 @@ tar -czf /tmp/archive.tar.gz $files > /dev/null
 echo "Created archive"
 
 # Get the ssh key & IP
-KEY=$(grep SSH_KEY "$WORKING_DIR"/properties | cut -d '=' -f2)
-IP=$(grep INSTANCE_IP "$WORKING_DIR"/properties | cut -d '=' -f2)
+KEY="$WORKING_DIR"/ContainerBuilderKey.pem
+IP=$(grep instance_ip "$WORKING_DIR"/properties.yml | cut -d ' ' -f2)
 
 # Copy the archive over to the remote machine
 scp -i "$KEY" /tmp/archive.tar.gz ec2-user@"$IP":/home/ec2-user > /dev/null
