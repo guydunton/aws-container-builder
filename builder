@@ -12,7 +12,6 @@ help() {
     echo "  -h, --help      Print the help text"
     echo ""
     echo "Commands:"
-    echo "  bootstrap       Setup VM"
     echo "  ship            Ship directory to VM to build"
     echo "  cleanup         Remove the VM and connections to it"
     echo "  connect         Connect to the VM"
@@ -65,32 +64,6 @@ ship() {
     REGISTRY_NAME="$REGISTRY" TARGET="$TARGET_ACCOUNT" "$WORKING_DIR"/scripts/zip_and_ship.sh "$@"
 }
 
-bootstrap_help() {
-    echo ""
-    echo "Usage: builder bootstrap [OPTIONS]"
-    echo ""
-    echo "Options:"
-    echo "  -h, --help      Print help text"
-    exit 0
-}
-
-bootstrap() {
-    if [[ $# -gt 1 ]]; then
-        key="$2"
-
-        case "$key" in
-            -h|--help) # Ship help text
-            bootstrap_help
-            ;;
-            *)
-            shift
-            ;;
-        esac
-    fi
-
-    "$WORKING_DIR"/scripts/bootstrap.sh
-}
-
 cleanup_help() {
     echo ""
     echo "Usage: builder cleanup [OPTIONS]"
@@ -123,9 +96,6 @@ if [[ $# -gt 0 ]]; then
         ship) # Ship subcommand
         shift
         ship "$@"
-        ;;
-        bootstrap) # bootstrap subcommand
-        bootstrap "$@"
         ;;
         cleanup) # cleanup subcommand
         cleanup "$@"
