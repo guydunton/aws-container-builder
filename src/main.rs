@@ -4,6 +4,7 @@ use clap::{App, AppSettings, Arg, SubCommand};
 mod bootstrap;
 mod cfn_deploy;
 mod config;
+mod connect;
 mod get_stack_ip;
 mod tag;
 mod test;
@@ -45,6 +46,11 @@ async fn main() {
                         .validator(tags_validator),
                 ),
         )
+        .subcommand(
+            SubCommand::with_name("connect")
+                .about("Create command which ssh's into box")
+                .usage("$(builder connect)"),
+        )
         .get_matches();
 
     // Handle subcommands
@@ -59,6 +65,9 @@ async fn main() {
 
         let result = run_bootstrap(profile.to_owned(), tags).await;
         println!("Finished bootstrap with result: {:?}", result);
+    } else if let Some(_) = matches.subcommand_matches("connect") {
+        // Print the command
+        println!("{}", connect::connect());
     }
 }
 
