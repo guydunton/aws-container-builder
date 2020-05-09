@@ -11,6 +11,7 @@ mod ship;
 mod ssh_client;
 mod tag;
 mod test;
+mod uninstall;
 
 pub use config::Config;
 pub use tag::Tag;
@@ -56,6 +57,7 @@ async fn main() {
                 .about("Create command which will ssh into box")
                 .usage("$(builder connect)"),
         )
+        .subcommand(SubCommand::with_name("uninstall").about("Clean up instance & SSH key"))
         .subcommand(
             SubCommand::with_name("ship")
                 .about(ship_help)
@@ -110,6 +112,9 @@ async fn main() {
         let result = ship::ship(path, registry_uri, additional_args);
         // ship subcommand
         println!("ship command: {:?}", result);
+    } else if let Some(_) = matches.subcommand_matches("uninstall") {
+        uninstall::uninstall().await;
+        println!("Successfully uninstalled resources");
     }
 }
 
