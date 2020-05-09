@@ -12,9 +12,12 @@ use std::path::{Path, PathBuf};
 #[derive(Debug)]
 pub enum ShipError {
     NoDockerIgnore,
-    ArchiveCreationFailed,
+    RegistryUriMalformed,
+    ArchiveCreationFailed(String),
     ScriptCreateFailed,
-    ScriptExitCodeError,
+    ConfigFileNotOpened,
+    ScriptExitCodeError(String),
+    SendFileError(String),
 }
 
 pub fn ship(
@@ -27,14 +30,19 @@ pub fn ship(
     let all_files = get_all_files(target_dir);
 
     // Get the account from the registry_uri
-    let account = registry_uri.split(".").nth(0).unwrap().to_owned();
+    let account = registry_uri
+        .split(".")
+        .nth(0)
+        .ok_or(ShipError::RegistryUriMalformed)
+        .map(|acc| acc.to_owned())?;
 
     // Remove the files from .dockerignore
     let ignore = DockerIgnore::new(target_dir.join(".dockerignore"))
         .map_err(|_| ShipError::NoDockerIgnore)?;
     let filtered_files = ignore.filter_files(&all_files);
 
-    tar_files(&filtered_files, &target_dir).map_err(|_| ShipError::ArchiveCreationFailed)?;
+    tar_files(&filtered_files, &target_dir)
+        .map_err(|err| ShipError::ArchiveCreationFailed(err.to_string()))?;
 
     // Write a script
     create_script(account, registry_uri, additional_args)?;
@@ -42,23 +50,35 @@ pub fn ship(
     let home_dir = dirs::home_dir().expect("Could not find home directory");
     let working_dir = home_dir.join(".cbuilder");
 
-    let config = Config::read_from_file(&working_dir.join("properties.yml")).unwrap();
+    let config = Config::read_from_file(&working_dir.join("properties.yml"))
+        .ok_or(ShipError::ConfigFileNotOpened)?;
     let ssh_client = SSHClient::new(
         config.get_instance_ip(),
         working_dir.join("ContainerBuilderKey.pem"),
     );
 
     // Ship archive
-    ssh_client.send_file(Path::new("archive.tar.gz"), "archive.tar.gz".to_owned());
+    ssh_client
+        .send_file(Path::new("archive.tar.gz"), "archive.tar.gz".to_owned())
+        .map_err(|err| ShipError::SendFileError(format!("{:#?}", err)))?;
 
     // Ship script
-    ssh_client.send_file(Path::new("script.sh"), "script.sh".to_owned());
+    ssh_client
+        .send_file(Path::new("script.sh"), "script.sh".to_owned())
+        .map_err(|err| ShipError::SendFileError(format!("{:#?}", err)))?;
 
     // Run script
-    ssh_client
+    let was_success = ssh_client
         .run_command("./script.sh > log".to_owned())
-        .map_err(|_| ShipError::ScriptExitCodeError)
-        .map(|_| ())
+        .map_err(|err| ShipError::ScriptExitCodeError(format!("{:#?}", err)))?;
+
+    if was_success {
+        Ok(())
+    } else {
+        Err(ShipError::ScriptExitCodeError(
+            "Script exited with non zero error code".to_owned(),
+        ))
+    }
 }
 
 fn get_all_files(path: &Path) -> Vec<PathBuf> {
@@ -85,7 +105,7 @@ fn tar_files(all_files: &Vec<PathBuf>, target_dir: &Path) -> std::io::Result<()>
         //.map(|f| tar.append_path(f))
         .map(|f: &PathBuf| {
             // Remove the target_dir from the front of the file for the path
-            let mut file = File::open(&f).unwrap();
+            let mut file = File::open(&f)?;
             return tar.append_file(f.strip_prefix(&target_dir).unwrap(), &mut file);
         })
         .find(|r| r.is_err())

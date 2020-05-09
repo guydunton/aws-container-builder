@@ -111,7 +111,14 @@ async fn main() {
 
         let result = ship::ship(path, registry_uri, additional_args);
         // ship subcommand
-        println!("ship command: {:?}", result);
+        match result {
+            Ok(()) => {
+                println!("Ship was successful");
+            }
+            Err(err) => {
+                println!("ship failed with error: {:#?}", err);
+            }
+        }
     } else if let Some(_) = matches.subcommand_matches("uninstall") {
         let result = uninstall::uninstall().await;
         match result {
