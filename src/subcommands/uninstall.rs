@@ -1,4 +1,4 @@
-use super::Config;
+use crate::Config;
 use rusoto_cloudformation::{CloudFormation, CloudFormationClient, DeleteStackInput};
 use rusoto_core::credential::ProfileProvider;
 use rusoto_core::{HttpClient, Region};

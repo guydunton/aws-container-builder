@@ -1,21 +1,12 @@
-use bootstrap::run_bootstrap;
 use clap::{App, AppSettings, Arg, SubCommand};
 
-mod bootstrap;
 mod cfn_deploy;
-mod config;
-mod connect;
-mod docker_ignore;
+mod entities;
 mod get_stack_ip;
-mod ship;
-mod ssh_client;
-mod tag;
-mod test;
-mod uninstall;
+mod subcommands;
 
-pub use config::Config;
-pub use tag::Tag;
-use tag::{tag_parser, tags_validator};
+pub use entities::*;
+use subcommands::*;
 
 #[tokio::main]
 async fn main() {
@@ -101,7 +92,7 @@ async fn main() {
         println!("Finished bootstrap with result: {:?}", result);
     } else if let Some(_) = matches.subcommand_matches("connect") {
         // Print the command
-        println!("{}", connect::connect());
+        println!("{}", run_connect());
     } else if let Some(matches) = matches.subcommand_matches("ship") {
         let path = matches.value_of("path").unwrap().to_owned();
         let registry_uri = matches.value_of("registry").unwrap().to_owned();
@@ -109,7 +100,7 @@ async fn main() {
             .values_of("build_args")
             .map(|values| values.map(|value| value.to_owned()).collect());
 
-        let result = ship::ship(path, registry_uri, additional_args);
+        let result = ship(path, registry_uri, additional_args);
         // ship subcommand
         match result {
             Ok(()) => {
@@ -120,7 +111,7 @@ async fn main() {
             }
         }
     } else if let Some(_) = matches.subcommand_matches("uninstall") {
-        let result = uninstall::uninstall().await;
+        let result = uninstall().await;
         match result {
             Ok(()) => {
                 println!("Successfully uninstalled resources");

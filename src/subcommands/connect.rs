@@ -1,6 +1,6 @@
-use super::Config;
+use crate::Config;
 
-pub fn connect() -> String {
+pub fn run_connect() -> String {
     let home_dir = dirs::home_dir().expect("Could not find home directory");
     let working_dir = home_dir.join(".cbuilder");
 

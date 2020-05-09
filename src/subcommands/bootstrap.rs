@@ -10,10 +10,9 @@ use std::ops::Fn;
 use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
 
-use super::cfn_deploy::{deploy_stack, Parameter};
-use super::get_stack_ip::get_stack_ip_address;
-use super::Config;
-use super::Tag;
+use crate::cfn_deploy::{deploy_stack, Parameter};
+use crate::get_stack_ip::get_stack_ip_address;
+use crate::{Config, Tag};
 
 #[derive(Debug)]
 pub enum BootstrapErrors {

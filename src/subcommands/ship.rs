@@ -1,6 +1,4 @@
-use super::docker_ignore::DockerIgnore;
-use super::ssh_client::SSHClient;
-use super::Config;
+use crate::{Config, DockerIgnore, SSHClient};
 use flate2::write::GzEncoder;
 use flate2::Compression;
 use std::fs::File;
