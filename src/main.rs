@@ -113,8 +113,15 @@ async fn main() {
         // ship subcommand
         println!("ship command: {:?}", result);
     } else if let Some(_) = matches.subcommand_matches("uninstall") {
-        uninstall::uninstall().await;
-        println!("Successfully uninstalled resources");
+        let result = uninstall::uninstall().await;
+        match result {
+            Ok(()) => {
+                println!("Successfully uninstalled resources");
+            }
+            Err(err) => {
+                println!("Failed to uninstall with error: {:#?}", err);
+            }
+        }
     }
 }
 

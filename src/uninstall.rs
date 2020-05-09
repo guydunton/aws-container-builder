@@ -4,12 +4,21 @@ use rusoto_core::credential::ProfileProvider;
 use rusoto_core::{HttpClient, Region};
 use rusoto_ec2::{DeleteKeyPairRequest, Ec2, Ec2Client};
 
-pub async fn uninstall() {
+#[derive(Debug)]
+pub enum UninstallError {
+    CouldNotFindConfig,
+    DeleteStackFailed(String),
+    DeleteSSHKeyFailed(String),
+    CouldNotDeleteLocalFiles,
+}
+
+pub async fn uninstall() -> Result<(), UninstallError> {
     // Load the config
     let home_dir = dirs::home_dir().expect("Could not find home directory");
     let working_dir = home_dir.join(".cbuilder");
     let props_file_path = working_dir.join("properties.yml");
-    let config = Config::read_from_file(&props_file_path).unwrap();
+    let config =
+        Config::read_from_file(&props_file_path).ok_or(UninstallError::CouldNotFindConfig)?;
 
     let profile_provider = ProfileProvider::with_configuration(
         home_dir.join(".aws/credentials"),
@@ -32,7 +41,7 @@ pub async fn uninstall() {
             role_arn: None,
         })
         .await
-        .unwrap();
+        .map_err(|err| UninstallError::DeleteStackFailed(err.to_string()))?;
 
     // delete the ssh key
     let ec2_client = Ec2Client::new_with(
@@ -47,9 +56,12 @@ pub async fn uninstall() {
             dry_run: Some(false),
         })
         .await
-        .unwrap();
+        .map_err(|err| UninstallError::DeleteSSHKeyFailed(err.to_string()))?;
 
     // Delete the local ssh key and properties file
-    std::fs::remove_file(&props_file_path).unwrap();
-    std::fs::remove_file(&working_dir.join("ContainerBuilderKey.pem")).unwrap();
+    std::fs::remove_file(&props_file_path).map_err(|_| UninstallError::CouldNotDeleteLocalFiles)?;
+    std::fs::remove_file(&working_dir.join("ContainerBuilderKey.pem"))
+        .map_err(|_| UninstallError::CouldNotDeleteLocalFiles)?;
+
+    Ok(())
 }
