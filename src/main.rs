@@ -5,7 +5,10 @@ mod bootstrap;
 mod cfn_deploy;
 mod config;
 mod connect;
+mod docker_ignore;
 mod get_stack_ip;
+mod ship;
+mod ssh_client;
 mod tag;
 mod test;
 
@@ -15,6 +18,8 @@ use tag::{tag_parser, tags_validator};
 
 #[tokio::main]
 async fn main() {
+    let ship_help = "Zip up the current directory, send to instance, build docker image and push to container registry";
+
     let matches = App::new("builder")
         .name("AWS container builder")
         .version("0.2")
@@ -48,8 +53,35 @@ async fn main() {
         )
         .subcommand(
             SubCommand::with_name("connect")
-                .about("Create command which ssh's into box")
+                .about("Create command which will ssh into box")
                 .usage("$(builder connect)"),
+        )
+        .subcommand(
+            SubCommand::with_name("ship")
+                .about(ship_help)
+                .arg(
+                    Arg::with_name("path")
+                        .long("path")
+                        .short("p")
+                        .help("Path to the directory to build")
+                        .takes_value(true)
+                        .required(true),
+                )
+                .arg(
+                    Arg::with_name("registry")
+                        .long("registry")
+                        .short("r")
+                        .help("The registry URI where we want to push the container")
+                        .takes_value(true)
+                        .required(true),
+                )
+                .arg(
+                    Arg::with_name("build_args")
+                        .last(true)
+                        .required(false)
+                        .multiple(true)
+                        .help("Additional arguments supplied to docker build"),
+                ),
         )
         .get_matches();
 
@@ -68,6 +100,16 @@ async fn main() {
     } else if let Some(_) = matches.subcommand_matches("connect") {
         // Print the command
         println!("{}", connect::connect());
+    } else if let Some(matches) = matches.subcommand_matches("ship") {
+        let path = matches.value_of("path").unwrap().to_owned();
+        let registry_uri = matches.value_of("registry").unwrap().to_owned();
+        let additional_args: Option<Vec<String>> = matches
+            .values_of("build_args")
+            .map(|values| values.map(|value| value.to_owned()).collect());
+
+        let result = ship::ship(path, registry_uri, additional_args);
+        // ship subcommand
+        println!("ship command: {:?}", result);
     }
 }
 

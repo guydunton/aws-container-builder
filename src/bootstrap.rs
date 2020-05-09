@@ -4,7 +4,6 @@ use rusoto_cloudformation::CloudFormationClient;
 use rusoto_core::credential::ProfileProvider;
 use rusoto_core::{HttpClient, Region};
 use rusoto_ec2::{CreateKeyPairRequest, DescribeImagesRequest, Ec2, Ec2Client, Filter};
-use std::error::Error;
 use std::fs::{create_dir, read_to_string, File};
 use std::io::prelude::*;
 use std::ops::Fn;
@@ -106,7 +105,7 @@ where
     create_dir_fn(working_dir).map_err(|err| {
         format!(
             "Failed to create working directory with error: {}",
-            err.description()
+            err.to_string()
         )
     })
 }
@@ -181,8 +180,7 @@ pub async fn create_ssh_key<Client: Ec2>(
         .await;
 
     // Check for errors in the response
-    let key_pair = result
-        .map_err(|err| BootstrapErrors::FailedCreatingSSHKey(err.description().to_owned()))?;
+    let key_pair = result.map_err(|err| BootstrapErrors::FailedCreatingSSHKey(err.to_string()))?;
 
     // Get the key text
     let ssh_key = key_pair
@@ -192,8 +190,8 @@ pub async fn create_ssh_key<Client: Ec2>(
         ))?;
 
     // Create the ssh key file
-    let mut file = File::create(path)
-        .map_err(|err| BootstrapErrors::FailedCreatingSSHKey(err.description().to_owned()))?;
+    let mut file =
+        File::create(path).map_err(|err| BootstrapErrors::FailedCreatingSSHKey(err.to_string()))?;
 
     // Store the key contents
     file.write_all(ssh_key.as_bytes()).map_err(|_| {
