@@ -23,7 +23,7 @@ async fn main() {
 
     let matches = App::new("builder")
         .name("AWS container builder")
-        .version("0.2")
+        .version(env!("CARGO_PKG_VERSION"))
         .setting(AppSettings::VersionlessSubcommands)
         .about("This program uses EC2 instances to build containers to save bandwidth")
         .subcommand(
