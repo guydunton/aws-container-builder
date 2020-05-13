@@ -94,10 +94,11 @@ async fn has_stack_completed<Client: CloudFormation>(
         .stack_events
         .ok_or(DeployError::DescribeStackFailed)?;
 
-    // resource_status 'CREATE_COMPLETE' & logical_resource_id == 'container-builder'
+    // resource_status 'CREATE_COMPLETE' | 'UPDATE_COMPLETE' & logical_resource_id == 'container-builder'
     let created_stack = stack_events.iter().any(|event| {
         event.logical_resource_id == Some(stack_name.clone())
-            && event.resource_status == Some("CREATE_COMPLETE".to_owned())
+            && (event.resource_status == Some("CREATE_COMPLETE".to_owned())
+                || event.resource_status == Some("UPDATE_COMPLETE".to_owned()))
     });
 
     Ok(created_stack)

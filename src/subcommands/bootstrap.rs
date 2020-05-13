@@ -12,7 +12,7 @@ use std::path::PathBuf;
 
 use crate::cfn_deploy::{deploy_stack, Parameter};
 use crate::get_stack_ip::get_stack_ip_address;
-use crate::{Config, Tag};
+use crate::{get_current_account_no, Config, Tag};
 
 #[derive(Debug)]
 pub enum BootstrapErrors {
@@ -23,6 +23,7 @@ pub enum BootstrapErrors {
     FailedDescribeStack,
     FailedWriteConfig,
     FailedSetKeyPermissions,
+    FailedGetCurrentAccountId(String),
 }
 
 pub async fn run_bootstrap(profile: String, tags: Vec<Tag>) -> Result<(), BootstrapErrors> {
@@ -58,6 +59,12 @@ pub async fn run_bootstrap(profile: String, tags: Vec<Tag>) -> Result<(), Bootst
     let cfn_template = read_to_string("resources/instance-cfn.yml")
         .map_err(|err| BootstrapErrors::FailedStackCreation(err.to_string()))?;
 
+    // Get the current account id
+    let account_id = get_current_account_no(profile.clone())
+        .await
+        .map_err(|err| BootstrapErrors::FailedGetCurrentAccountId(err))?;
+    let role = format!("arn:aws:iam::{}:role/ContainerBuilderPushRole", account_id);
+
     // Deploy the cloudformation template
     deploy_stack(
         &cfn_client,
@@ -66,6 +73,7 @@ pub async fn run_bootstrap(profile: String, tags: Vec<Tag>) -> Result<(), Bootst
         &vec![
             Parameter::new("AmiId".to_owned(), linux_ami),
             Parameter::new("SSHKeyName".to_owned(), "ContainerBuilderKey".to_owned()),
+            Parameter::new("AccountRoles".to_owned(), role),
         ],
         &tags,
         7 * 60,

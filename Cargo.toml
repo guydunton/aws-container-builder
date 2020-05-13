@@ -12,7 +12,9 @@ dirs = "2.0.2"
 rusoto_core = "0.43.0"
 rusoto_ec2 = { version = "0.43.0", features = [ "serialize_structs" ] }
 rusoto_cloudformation = "0.43.0"
-tokio = "0.2.18"
+rusoto_sts = "0.43.0"
+futures = "0.3.5"
+tokio = { version = "0.2.18", features = ["macros"] }
 chrono = "0.4.11"
 rusoto_mock = "0.43.0"
 serde = "1.0.106"

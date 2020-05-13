@@ -7,6 +7,9 @@ Parameters:
   SSHKeyName:
     Type: AWS::EC2::KeyPair::KeyName
     Description: SSH key name already existing within AWS
+  AccountRoles:
+    Type: CommaDelimitedList
+    Description: The list of roles which the EC2 instance is allowed to assume to the purpose of pushing images
 
 Resources:
   Instance:
@@ -66,11 +69,7 @@ Resources:
             Statement:
               - Effect: "Allow"
                 Action: "sts:AssumeRole"
-                Resource:
-                  !Join [
-                    "",
-                    ["arn:aws:iam::", !Ref "AWS::AccountId", ":role/ContainerBuilderPushRole"],
-                  ]
+                Resource: !Ref AccountRoles
 
   InstanceProfile:
     Type: AWS::IAM::InstanceProfile

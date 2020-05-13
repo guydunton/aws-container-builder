@@ -6,16 +6,17 @@ mod entities;
 mod get_stack_ip;
 mod subcommands;
 
-use cli::*;
+use cli::CLICommand;
 pub use entities::*;
 use subcommands::*;
 
 #[tokio::main]
 async fn main() {
-    let ship_subcommand = ShipCommand::create();
-    let bootstrap_subcommand = BootstrapCommand::create();
-    let uninstall_subcommand = UninstallCommand::create();
-    let connect_subcommand = ConnectCommand::create();
+    let ship_subcommand = cli::ShipCommand::create();
+    let bootstrap_subcommand = cli::BootstrapCommand::create();
+    let uninstall_subcommand = cli::UninstallCommand::create();
+    let connect_subcommand = cli::ConnectCommand::create();
+    let add_account_subcommand = cli::AddAccountCommand::create();
 
     let matches = App::new("builder")
         .name("AWS container builder")
@@ -26,6 +27,7 @@ async fn main() {
         .subcommand(connect_subcommand.subcommand())
         .subcommand(uninstall_subcommand.subcommand())
         .subcommand(ship_subcommand.subcommand())
+        .subcommand(add_account_subcommand.subcommand())
         .get_matches();
 
     // Handle subcommands
@@ -33,4 +35,5 @@ async fn main() {
     cli::run_if_called(&ship_subcommand, &matches).await;
     cli::run_if_called(&bootstrap_subcommand, &matches).await;
     cli::run_if_called(&uninstall_subcommand, &matches).await;
+    cli::run_if_called(&add_account_subcommand, &matches).await;
 }

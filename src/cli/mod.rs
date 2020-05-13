@@ -1,8 +1,10 @@
+mod add_account;
 mod bootstrap;
 mod connect;
 mod ship;
 mod uninstall;
 
+pub use add_account::AddAccountCommand;
 pub use bootstrap::BootstrapCommand;
 pub use connect::ConnectCommand;
 pub use ship::ShipCommand;
