@@ -22,6 +22,7 @@ pub fn ship(
     path: String,
     registry_uri: String,
     additional_args: Option<Vec<String>>,
+    tag: String,
 ) -> Result<(), ShipError> {
     let target_dir = Path::new(&path);
     // Find all files in directory
@@ -43,7 +44,7 @@ pub fn ship(
         .map_err(|err| ShipError::ArchiveCreationFailed(err.to_string()))?;
 
     // Write a script
-    create_script(account, registry_uri, additional_args)?;
+    create_script(account, registry_uri, additional_args, tag)?;
 
     let home_dir = dirs::home_dir().expect("Could not find home directory");
     let working_dir = home_dir.join(".cbuilder");
@@ -117,6 +118,7 @@ fn create_script(
     target_account: String,
     registry_uri: String,
     additional_args: Option<Vec<String>>,
+    tag: String,
 ) -> Result<(), ShipError> {
     // Set additional args
     let build_args = match additional_args {
@@ -137,7 +139,7 @@ fn create_script(
     );
     script.push(format!("aws ecr get-login-password --profile target_profile --region us-east-1 | docker login --username AWS --password-stdin {}", registry_uri));
     script.push(format!("docker build -t {} {} .", registry_uri, build_args));
-    script.push(format!("docker push {}:latest", registry_uri));
+    script.push(format!("docker push {}:{}", registry_uri, tag));
     script.push("cd ..".to_owned());
     script.push("rm -rf archive".to_owned());
 

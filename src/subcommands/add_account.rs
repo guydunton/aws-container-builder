@@ -9,7 +9,7 @@ use rusoto_core::{HttpClient, Region};
 pub enum AddAccountError {
     FailedToLoadConfig,
     FailedGetCurrentAccountNo(String),
-    FailedUpdateStack,
+    FailedUpdateStack(String),
     FailedCreateNewStack,
     FailedToUpdateConfig,
 }
@@ -82,7 +82,7 @@ pub async fn run_add_account(
             ..UpdateStackInput::default()
         })
         .await
-        .map_err(|_| AddAccountError::FailedUpdateStack)?;
+        .map_err(|err| AddAccountError::FailedUpdateStack(err.to_string()))?;
 
     // Deploy the role stack in the new account
     let new_stacktemplate = std::fs::read_to_string("resources/role-cfn.yml")

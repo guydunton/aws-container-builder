@@ -27,6 +27,13 @@ impl CLICommand for ShipCommand {
                     .required(true),
             )
             .arg(
+                Arg::with_name("tag")
+                    .long("tag")
+                    .short("t")
+                    .help("Docker tag to apply to the build")
+                    .default_value("latest"),
+            )
+            .arg(
                 Arg::with_name("build_args")
                     .last(true)
                     .required(false)
@@ -45,8 +52,9 @@ impl CLICommand for ShipCommand {
         let additional_args: Option<Vec<String>> = matches
             .values_of("build_args")
             .map(|values| values.map(|value| value.to_owned()).collect());
+        let tag = matches.value_of("tag").unwrap().to_owned();
 
-        let result = ship(path, registry_uri, additional_args);
+        let result = ship(path, registry_uri, additional_args, tag);
         // ship subcommand
         match result {
             Ok(()) => {
