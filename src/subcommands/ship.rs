@@ -9,7 +9,6 @@ use std::path::{Path, PathBuf};
 
 #[derive(Debug)]
 pub enum ShipError {
-    NoDockerIgnore,
     RegistryUriMalformed,
     ArchiveCreationFailed(String),
     ScriptCreateFailed,
@@ -36,9 +35,8 @@ pub fn ship(
         .map(|acc| acc.to_owned())?;
 
     // Remove the files from .dockerignore
-    let ignore = DockerIgnore::new(target_dir.join(".dockerignore"))
-        .map_err(|_| ShipError::NoDockerIgnore)?;
-    let filtered_files = ignore.filter_files(&all_files);
+    let filtered_files = DockerIgnore::new(target_dir.join(".dockerignore"))
+        .map_or(all_files.clone(), |ignore| ignore.filter_files(&all_files));
 
     tar_files(&filtered_files, &target_dir)
         .map_err(|err| ShipError::ArchiveCreationFailed(err.to_string()))?;
@@ -138,7 +136,10 @@ fn create_script(
         "aws configure set profile.target_profile.credential_source Ec2InstanceMetadata".to_owned(),
     );
     script.push(format!("aws ecr get-login-password --profile target_profile --region us-east-1 | docker login --username AWS --password-stdin {}", registry_uri));
-    script.push(format!("docker build -t {} {} .", registry_uri, build_args));
+    script.push(format!(
+        "docker build -t {}:{} {} .",
+        registry_uri, tag, build_args
+    ));
     script.push(format!("docker push {}:{}", registry_uri, tag));
     script.push("cd ..".to_owned());
     script.push("rm -rf archive".to_owned());

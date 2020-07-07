@@ -88,6 +88,10 @@ impl Config {
 
         Some(config)
     }
+
+    pub fn set_instance_ip(&mut self, instance_ip: String) {
+        self.instance_ip = instance_ip;
+    }
 }
 
 #[test]

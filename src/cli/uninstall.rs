@@ -5,6 +5,12 @@ use crate::uninstall;
 
 pub struct UninstallCommand {}
 
+impl UninstallCommand {
+    pub fn new() -> Self {
+        UninstallCommand {}
+    }
+}
+
 #[async_trait::async_trait]
 impl CLICommand for UninstallCommand {
     fn subcommand(&self) -> App<'_, '_> {
@@ -25,9 +31,5 @@ impl CLICommand for UninstallCommand {
                 println!("Failed to uninstall with error: {:#?}", err);
             }
         }
-    }
-
-    fn create() -> Self {
-        UninstallCommand {}
     }
 }

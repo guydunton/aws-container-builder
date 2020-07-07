@@ -5,6 +5,12 @@ use clap::{App, Arg, ArgMatches, SubCommand};
 
 pub struct AddAccountCommand {}
 
+impl AddAccountCommand {
+    pub fn new() -> Self {
+        AddAccountCommand {}
+    }
+}
+
 #[async_trait::async_trait]
 impl CLICommand for AddAccountCommand {
     fn subcommand(&self) -> App<'_, '_> {
@@ -55,10 +61,6 @@ impl CLICommand for AddAccountCommand {
                 println!("Failed to add account with error: {:#?}", err);
             }
         }
-    }
-
-    fn create() -> Self {
-        AddAccountCommand {}
     }
 }
 

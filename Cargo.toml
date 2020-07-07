@@ -7,20 +7,20 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-clap = "2.33.0"
-dirs = "2.0.2"
-rusoto_core = "0.43.0"
-rusoto_ec2 = { version = "0.43.0", features = [ "serialize_structs" ] }
-rusoto_cloudformation = "0.43.0"
-rusoto_sts = "0.43.0"
+clap = "2.33.1"
+dirs = "3.0.1"
+rusoto_core = "0.44.0"
+rusoto_ec2 = { version = "0.44.0", features = [ "serialize_structs" ] }
+rusoto_cloudformation = "0.44.0"
+rusoto_sts = "0.44.0"
+rusoto_mock = "0.44.0"
 futures = "0.3.5"
-tokio = { version = "0.2.18", features = ["macros"] }
-chrono = "0.4.11"
-rusoto_mock = "0.43.0"
-serde = "1.0.106"
-serde_yaml = "0.8.11"
-ssh2 = "0.8.0"
-flate2 = "1.0.14"
-tar = "0.4.26"
+tokio = { version = "0.2.21", features = ["macros"] }
+chrono = "0.4.13"
+serde = "1.0.114"
+serde_yaml = "0.8.13"
+ssh2 = "0.8.2"
+flate2 = "1.0.16"
+tar = "0.4.29"
 regex = "1"
-async-trait = "0.1.30"
+async-trait = "0.1.36"

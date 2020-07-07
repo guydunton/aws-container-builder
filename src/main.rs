@@ -12,11 +12,13 @@ use subcommands::*;
 
 #[tokio::main]
 async fn main() {
-    let ship_subcommand = cli::ShipCommand::create();
-    let bootstrap_subcommand = cli::BootstrapCommand::create();
-    let uninstall_subcommand = cli::UninstallCommand::create();
-    let connect_subcommand = cli::ConnectCommand::create();
-    let add_account_subcommand = cli::AddAccountCommand::create();
+    let ship_subcommand = cli::ShipCommand::new();
+    let bootstrap_subcommand = cli::BootstrapCommand::new();
+    let uninstall_subcommand = cli::UninstallCommand::new();
+    let connect_subcommand = cli::ConnectCommand::new();
+    let add_account_subcommand = cli::AddAccountCommand::new();
+    let start_subcommand = cli::StartCommand::new();
+    let stop_subcommand = cli::StopCommand::new();
 
     let matches = App::new("builder")
         .name("AWS container builder")
@@ -28,6 +30,8 @@ async fn main() {
         .subcommand(uninstall_subcommand.subcommand())
         .subcommand(ship_subcommand.subcommand())
         .subcommand(add_account_subcommand.subcommand())
+        .subcommand(start_subcommand.subcommand())
+        .subcommand(stop_subcommand.subcommand())
         .get_matches();
 
     // Handle subcommands
@@ -36,4 +40,6 @@ async fn main() {
     cli::run_if_called(&bootstrap_subcommand, &matches).await;
     cli::run_if_called(&uninstall_subcommand, &matches).await;
     cli::run_if_called(&add_account_subcommand, &matches).await;
+    cli::run_if_called(&start_subcommand, &matches).await;
+    cli::run_if_called(&stop_subcommand, &matches).await;
 }

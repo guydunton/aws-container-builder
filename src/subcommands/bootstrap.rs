@@ -178,11 +178,17 @@ pub async fn create_ssh_key<Client: Ec2>(
     client: &Client,
     path: PathBuf,
 ) -> Result<(), BootstrapErrors> {
+    // If the key exists then don't recreate it
+    if path.exists() {
+        return Ok(());
+    }
+
     // Create SSH key within AWS
     let result = client
         .create_key_pair(CreateKeyPairRequest {
             dry_run: Some(false),
             key_name: "ContainerBuilderKey".to_owned(),
+            tag_specifications: None,
         })
         .await;
 

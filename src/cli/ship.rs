@@ -4,6 +4,12 @@ use clap::{App, Arg, ArgMatches, SubCommand};
 
 pub struct ShipCommand {}
 
+impl ShipCommand {
+    pub fn new() -> Self {
+        ShipCommand {}
+    }
+}
+
 #[async_trait::async_trait]
 impl CLICommand for ShipCommand {
     fn subcommand(&self) -> App<'_, '_> {
@@ -64,9 +70,5 @@ impl CLICommand for ShipCommand {
                 println!("ship failed with error: {:#?}", err);
             }
         }
-    }
-
-    fn create() -> Self {
-        ShipCommand {}
     }
 }

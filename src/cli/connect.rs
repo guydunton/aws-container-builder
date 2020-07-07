@@ -5,6 +5,12 @@ use crate::run_connect;
 
 pub struct ConnectCommand {}
 
+impl ConnectCommand {
+    pub fn new() -> Self {
+        ConnectCommand {}
+    }
+}
+
 #[async_trait::async_trait]
 impl CLICommand for ConnectCommand {
     fn subcommand(&self) -> App<'_, '_> {
@@ -19,9 +25,5 @@ impl CLICommand for ConnectCommand {
 
     async fn run_fn(&self, _matches: &ArgMatches<'_>) {
         println!("{}", run_connect());
-    }
-
-    fn create() -> Self {
-        ConnectCommand {}
     }
 }

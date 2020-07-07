@@ -67,8 +67,9 @@ pub async fn uninstall() -> Result<(), UninstallError> {
 
     ec2_client
         .delete_key_pair(DeleteKeyPairRequest {
-            key_name: "ContainerBuilderKey".to_owned(),
+            key_name: Some("ContainerBuilderKey".to_owned()),
             dry_run: Some(false),
+            key_pair_id: None,
         })
         .await
         .map_err(|err| UninstallError::DeleteSSHKeyFailed(err.to_string()))?;

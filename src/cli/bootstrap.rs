@@ -4,6 +4,12 @@ use clap::{App, Arg, ArgMatches, SubCommand};
 
 pub struct BootstrapCommand {}
 
+impl BootstrapCommand {
+    pub fn new() -> Self {
+        BootstrapCommand {}
+    }
+}
+
 #[async_trait::async_trait]
 impl CLICommand for BootstrapCommand {
     fn subcommand(&self) -> App<'_, '_> {
@@ -47,10 +53,6 @@ impl CLICommand for BootstrapCommand {
 
         let result = run_bootstrap(profile.to_owned(), tags).await;
         println!("Finished bootstrap with result: {:?}", result);
-    }
-
-    fn create() -> Self {
-        BootstrapCommand {}
     }
 }
 

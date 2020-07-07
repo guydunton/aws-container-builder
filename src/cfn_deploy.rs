@@ -1,8 +1,11 @@
-use rusoto_cloudformation::{CloudFormation, CreateStackInput, DescribeStackEventsInput};
+use rusoto_cloudformation::{
+    CloudFormation, CreateStackError, CreateStackInput, DescribeStackEventsInput,
+};
 use std::thread::sleep;
 use std::time::{Duration, Instant};
 
 use super::Tag;
+use rusoto_core::RusotoError;
 
 #[derive(Debug)]
 pub enum DeployError {
@@ -13,7 +16,8 @@ pub enum DeployError {
 
 impl std::fmt::Display for DeployError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self)
+        // Must be :? or this will be recursive and cause a stack overflow
+        write!(f, "{:?}", self)
     }
 }
 
@@ -38,7 +42,7 @@ pub async fn deploy_stack<Client: CloudFormation>(
     timeout: u64,
 ) -> Result<(), DeployError> {
     // Start the stack creation
-    client
+    let create_result = client
         .create_stack(CreateStackInput {
             capabilities: Some(vec!["CAPABILITY_NAMED_IAM".to_owned()]),
             stack_name: stack_name.clone(),
@@ -52,8 +56,17 @@ pub async fn deploy_stack<Client: CloudFormation>(
             template_body: Some(template),
             ..CreateStackInput::default()
         })
-        .await
-        .map_err(|_| DeployError::CreateStackFailed)?;
+        .await;
+
+    // If the stack already exists then go on to wait until it's available
+    match create_result {
+        Ok(_) => {}
+        Err(RusotoError::Service(CreateStackError::AlreadyExists(_))) => {}
+        _ => {
+            // Fail
+            return Err(DeployError::CreateStackFailed);
+        }
+    }
 
     let start_time = Instant::now();
 
