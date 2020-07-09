@@ -1,9 +1,7 @@
 use clap::{App, AppSettings};
 
-mod cfn_deploy;
 mod cli;
 mod entities;
-mod get_stack_ip;
 mod subcommands;
 
 use cli::CLICommand;

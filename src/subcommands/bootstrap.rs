@@ -1,18 +1,13 @@
 use chrono::prelude::*;
 use core::str::FromStr;
-use rusoto_cloudformation::CloudFormationClient;
-use rusoto_core::credential::ProfileProvider;
-use rusoto_core::{HttpClient, Region};
-use rusoto_ec2::{CreateKeyPairRequest, DescribeImagesRequest, Ec2, Ec2Client, Filter};
+use rusoto_ec2::Image;
 use std::fs::{create_dir, read_to_string, File};
 use std::io::prelude::*;
 use std::ops::Fn;
 use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
 
-use crate::cfn_deploy::{deploy_stack, Parameter};
-use crate::get_stack_ip::get_stack_ip_address;
-use crate::{get_current_account_no, Config, Tag};
+use crate::{get_current_account_no, CfnClient, Config, EC2Client, SimpleParameter, Tag};
 
 #[derive(Debug)]
 pub enum BootstrapErrors {
@@ -33,27 +28,25 @@ pub async fn run_bootstrap(profile: String, tags: Vec<Tag>) -> Result<(), Bootst
     ensure_working_dir_exists(working_dir.clone(), create_dir)
         .map_err(|err| BootstrapErrors::FailedCreateWorkingDir(err))?;
 
-    let profile_provider =
-        ProfileProvider::with_configuration(home_dir.join(".aws/credentials"), profile.clone());
-
-    let ec2_client = Ec2Client::new_with(
-        HttpClient::new().expect("Failed to create request dispatcher"),
-        profile_provider.clone(),
-        Region::UsEast1,
-    );
-
     // Create SSH Key into directory
-    create_ssh_key(&ec2_client, working_dir.join("ContainerBuilderKey.pem")).await?;
+    let my_ec2 = EC2Client::new(profile.clone());
+    let key = my_ec2
+        .create_ssh_key()
+        .await
+        .ok_or(BootstrapErrors::FailedCreatingSSHKey(
+            "Failed create ec2 ssh key".to_owned(),
+        ))?;
+    create_ssh_key(key, working_dir.join("ContainerBuilderKey.pem")).await?;
 
     // Find the correct AWS Amazon Linux 2 AMI
-    let linux_ami = get_amazon_linux_2_ami(&ec2_client).await?;
+    let images = my_ec2
+        .get_amazon_linux_2_ami()
+        .await
+        .ok_or(BootstrapErrors::FailedFindAmi)?;
+    let linux_ami = get_amazon_linux_2_ami(images).await?;
 
     // Deploy cloudformation stack
-    let cfn_client = CloudFormationClient::new_with(
-        HttpClient::new().expect("Failed to create request dispatcher"),
-        profile_provider.clone(),
-        Region::UsEast1,
-    );
+    let cfn_client = CfnClient::new(profile.clone());
 
     // Load the cloudformation template file to a string
     let cfn_template = read_to_string("resources/instance-cfn.yml")
@@ -66,23 +59,29 @@ pub async fn run_bootstrap(profile: String, tags: Vec<Tag>) -> Result<(), Bootst
     let role = format!("arn:aws:iam::{}:role/ContainerBuilderPushRole", account_id);
 
     // Deploy the cloudformation template
-    deploy_stack(
-        &cfn_client,
-        "container-builder".to_owned(),
-        cfn_template,
-        &vec![
-            Parameter::new("AmiId".to_owned(), linux_ami),
-            Parameter::new("SSHKeyName".to_owned(), "ContainerBuilderKey".to_owned()),
-            Parameter::new("AccountRoles".to_owned(), role),
-        ],
-        &tags,
-        7 * 60,
-    )
-    .await
-    .map_err(|err| BootstrapErrors::FailedStackCreation(err.to_string()))?;
+    cfn_client
+        .deploy_stack(
+            "container-builder".to_owned(),
+            cfn_template,
+            &vec![
+                SimpleParameter::new("AmiId".to_owned(), linux_ami),
+                SimpleParameter::new("SSHKeyName".to_owned(), "ContainerBuilderKey".to_owned()),
+                SimpleParameter::new("AccountRoles".to_owned(), role),
+            ],
+            &tags,
+            7 * 60,
+        )
+        .await
+        .map_err(|err| BootstrapErrors::FailedStackCreation(err.to_string()))?;
 
-    // Get the IP address of the instance
-    let instance_ip = get_stack_ip_address(&cfn_client)
+    let instance_id = cfn_client
+        .get_instance_id()
+        .await
+        .ok_or(BootstrapErrors::FailedDescribeStack)?;
+
+    let ec2_client = EC2Client::new(profile.clone());
+    let instance_ip = ec2_client
+        .get_instance_ip(instance_id)
         .await
         .ok_or(BootstrapErrors::FailedDescribeStack)?;
 
@@ -117,34 +116,8 @@ where
     })
 }
 
-fn create_filter(name: &str, value: &str) -> Filter {
-    Filter {
-        name: Some(name.to_owned()),
-        values: Some(vec![value.to_owned()]),
-    }
-}
-
-pub async fn get_amazon_linux_2_ami<Client: Ec2>(
-    client: &Client,
-) -> Result<String, BootstrapErrors> {
-    // Find the correct AWS Amazon Linux 2 AMI
-    let images_request = client
-        .describe_images(DescribeImagesRequest {
-            dry_run: Some(false),
-            filters: Some(vec![
-                create_filter("name", "amzn2-ami-hvm-2.0.????????.?-x86_64-gp2"),
-                create_filter("state", "available"),
-            ]),
-            owners: Some(vec![String::from("amazon")]),
-            ..DescribeImagesRequest::default()
-        })
-        .await;
-
-    // Pull out the images and check that they exist
-    let mut images = images_request
-        .map_err(|_| BootstrapErrors::FailedFindAmi)?
-        .images
-        .ok_or(BootstrapErrors::FailedFindAmi)?;
+pub async fn get_amazon_linux_2_ami(mut images: Vec<Image>) -> Result<String, BootstrapErrors> {
+    //    .ok_or(BootstrapErrors::FailedFindAmi)?;
 
     // Check creation dates & image_ids are set
     if images
@@ -174,40 +147,18 @@ pub async fn get_amazon_linux_2_ami<Client: Ec2>(
         .ok_or(BootstrapErrors::FailedFindAmi)
 }
 
-pub async fn create_ssh_key<Client: Ec2>(
-    client: &Client,
-    path: PathBuf,
-) -> Result<(), BootstrapErrors> {
+pub async fn create_ssh_key(key: String, path: PathBuf) -> Result<(), BootstrapErrors> {
     // If the key exists then don't recreate it
     if path.exists() {
         return Ok(());
     }
-
-    // Create SSH key within AWS
-    let result = client
-        .create_key_pair(CreateKeyPairRequest {
-            dry_run: Some(false),
-            key_name: "ContainerBuilderKey".to_owned(),
-            tag_specifications: None,
-        })
-        .await;
-
-    // Check for errors in the response
-    let key_pair = result.map_err(|err| BootstrapErrors::FailedCreatingSSHKey(err.to_string()))?;
-
-    // Get the key text
-    let ssh_key = key_pair
-        .key_material
-        .ok_or(BootstrapErrors::FailedCreatingSSHKey(
-            "Did not retrieve key_material".to_owned(),
-        ))?;
 
     // Create the ssh key file
     let mut file =
         File::create(path).map_err(|err| BootstrapErrors::FailedCreatingSSHKey(err.to_string()))?;
 
     // Store the key contents
-    file.write_all(ssh_key.as_bytes()).map_err(|_| {
+    file.write_all(key.as_bytes()).map_err(|_| {
         BootstrapErrors::FailedCreatingSSHKey("Failed to write ssh key bytes".to_owned())
     })?;
 

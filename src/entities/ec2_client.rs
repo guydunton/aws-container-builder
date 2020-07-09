@@ -1,7 +1,7 @@
 use rusoto_core::{credential::ProfileProvider, HttpClient, Region};
 use rusoto_ec2::{
-    DeleteKeyPairRequest, DescribeInstancesRequest, Ec2, Ec2Client, Instance,
-    StartInstancesRequest, StopInstancesRequest,
+    CreateKeyPairRequest, DeleteKeyPairRequest, DescribeImagesRequest, DescribeInstancesRequest,
+    Ec2, Ec2Client, Filter, Image, Instance, StartInstancesRequest, StopInstancesRequest,
 };
 
 pub struct EC2Client {
@@ -87,5 +87,46 @@ impl EC2Client {
             .await;
 
         result.is_ok()
+    }
+
+    pub async fn create_ssh_key(&self) -> Option<String> {
+        let result = self
+            .client
+            .create_key_pair(CreateKeyPairRequest {
+                dry_run: Some(false),
+                key_name: "ContainerBuilderKey".to_owned(),
+                tag_specifications: None,
+            })
+            .await;
+
+        result.ok().map(|key| key.key_material).flatten()
+    }
+
+    pub async fn get_amazon_linux_2_ami(&self) -> Option<Vec<Image>> {
+        // Find the correct AWS Amazon Linux 2 AMI
+        let images_request = self
+            .client
+            .describe_images(DescribeImagesRequest {
+                dry_run: Some(false),
+                filters: Some(vec![
+                    create_filter("name", "amzn2-ami-hvm-2.0.????????.?-x86_64-gp2"),
+                    create_filter("state", "available"),
+                ]),
+                owners: Some(vec![String::from("amazon")]),
+                ..DescribeImagesRequest::default()
+            })
+            .await;
+
+        // Pull out the images and check that they exist
+        let images = images_request.ok()?.images;
+
+        images
+    }
+}
+
+fn create_filter(name: &str, value: &str) -> Filter {
+    Filter {
+        name: Some(name.to_owned()),
+        values: Some(vec![value.to_owned()]),
     }
 }

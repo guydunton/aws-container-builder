@@ -1,6 +1,5 @@
 mod add_account;
 mod bootstrap;
-mod bootstrap_tests;
 mod connect;
 mod ship;
 mod start;
